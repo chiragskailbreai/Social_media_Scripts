@@ -1,0 +1,61 @@
+import requests
+
+def get_page_access_token(page_id, user_access_token):
+    """
+    Function to retrieve the Page Access Token using the user access token and page ID.
+    """
+    version = 'v20.0'
+    api_url_token = f'https://graph.facebook.com/{version}/{page_id}?fields=access_token&access_token={user_access_token}'
+    
+    try:
+        response = requests.get(api_url_token)
+        response.raise_for_status()
+        data = response.json()
+        return data['access_token']
+    except requests.exceptions.RequestException as e:
+        print("Error:", e)
+        return None
+
+def post_fb_with_image_url(page_id, page_access_token, message, image_url):
+    """
+    Function to publish a post with an image URL to the Facebook Page using the Page Access Token.
+    """
+    url = f'https://graph.facebook.com/v20.0/{page_id}/photos'
+    
+    payload = {
+        'message': message,
+        'url': image_url,
+        'access_token': page_access_token
+    }
+    
+    try:
+        response = requests.post(url, data=payload)
+        response.raise_for_status()
+        print("Post with image successfully published!")
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to post: {e}")
+        if response.content:
+            print(response.json())
+        return None
+
+# User access token (replace with your actual user access token)
+user_access_token = 'EAARFy0xMzyIBOwPIjWaAVqUAxk0FLJZBg6F1zPrtP74llOPr94K1q10xPlTKkyZCfZCuGsLjGZCPqDWU9G5S0kqvy29J4W9itvHL35IkgeooaHvkC7hZB8w6YLIv9ylHluDQcfczlmdwGcO1FU19cRxpNnUezP8H3P6k7NqaaWZAFwSfH3OT15dJ26rD7hOgYP'
+
+# Facebook Page ID (replace with your actual page ID)
+page_id = '405552919315997'
+
+# Message for the post
+message = 'God of Cricket #great'
+
+# URL of the image
+image_url = 'https://images.tribuneindia.com/cms/gall_content/2019/9/2019_9$largeimg26_Thursday_2019_120331808.jpg'
+
+# Retrieve the Page Access Token
+page_access_token = get_page_access_token(page_id, user_access_token)
+
+# If the Page Access Token was successfully retrieved, publish the post with the image URL
+if page_access_token:
+    post_fb_with_image_url(page_id, page_access_token, message, image_url)
+else:
+    print("Failed to obtain Page Access Token.")
