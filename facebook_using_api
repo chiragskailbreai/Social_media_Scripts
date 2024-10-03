@@ -1,62 +1,114 @@
 import requests
+import json
+from pathlib import Path
 
-def get_page_access_token(page_id, user_access_token):
-    """
-    Function to retrieve the Page Access Token using the user access token and page ID.
-    """
-    version = 'v20.0'
-    api_url_token = f'https://graph.facebook.com/{version}/{page_id}?fields=access_token&access_token={user_access_token}'
-    
-    try:
-        response = requests.get(api_url_token)
-        response.raise_for_status()
-        data = response.json()
-        return data['access_token']
-    except requests.exceptions.RequestException as e:
-        print("Error:", e)
-        return None
-
-def post_fb_with_image_url(page_id, page_access_token, message, image_url):
-    """
-    Function to publish a post with an image URL to the Facebook Page using the Page Access Token.
-    """
-    url = f'https://graph.facebook.com/v20.0/{page_id}/photos'
-    
-    payload = {
-        'message': message,
-        'url': image_url,
-        'access_token': page_access_token
+def debug_access_token(access_token):
+    debug_url = "https://graph.facebook.com/debug_token"
+    params = {
+        "input_token": access_token,
+        "access_token": access_token
     }
     
-    try:
-        response = requests.post(url, data=payload)
-        response.raise_for_status()
-        print("Post with image successfully published!")
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to post: {e}")
-        if response.content:
-            print(response.json())
+    response = requests.get(debug_url, params=params)
+    if response.status_code != 200:
+        print("Error debugging access token:")
+        print(json.dumps(response.json(), indent=2))
+        return None
+    
+    token_info = response.json()["data"]
+    print("Access Token Debug Information:")
+    print(json.dumps(token_info, indent=2))
+    
+    print("\nPermissions:")
+    permissions_url = "https://graph.facebook.com/me/permissions"
+    params = {"access_token": access_token}
+    response = requests.get(permissions_url, params=params)
+    if response.status_code == 200:
+        permissions = response.json()["data"]
+        for perm in permissions:
+            print(f"- {perm['permission']} : {perm['status']}")
+    else:
+        print("Error fetching permissions:")
+        print(json.dumps(response.json(), indent=2))
+
+def get_page_access_token(user_access_token, page_id):
+    url = f"https://graph.facebook.com/{page_id}"
+    params = {
+        "fields": "access_token",
+        "access_token": user_access_token
+    }
+    response = requests.get(url, params=params)
+    if response.status_code != 200:
+        print("Error getting page access token:")
+        print(json.dumps(response.json(), indent=2))
+        return None
+    return response.json().get("access_token")
+
+def upload_media_to_facebook(access_token, page_id, file_path, description, is_video=False):
+    file_path = Path(file_path)
+    
+    if not file_path.exists():
+        print(f"Error: File {file_path} does not exist.")
         return None
 
-# User access token (replace with your actual user access token)
-user_access_token = 'EAARFy0xMzyIBO3LAZBbtOZBYnl7kDs9IW9c8qNSCXGYSSUZBchJqnyS9ppCc529W1nRIuvEz7kqZAkhWJ0aaMnzWPD973y2JBqfcC2m0AyGOdrbZC18x4fZCQwSlHcTPXXLM2tUP5GKZC2XV7tWJDOILpaD4SZCZAHteQEQVVneN8gXLGdIPj9FPb9HEvTc3mnZBII
-Debug'
+    url = f"https://graph.facebook.com/{page_id}/{'videos' if is_video else 'photos'}"
+    
+    with open(file_path, 'rb') as file:
+        params = {
+            "access_token": access_token,
+            "description": description
+        }
+        files = {
+            "source": file
+        }
+        
+        response = requests.post(url, params=params, files=files)
+        
+    if response.status_code != 200:
+        print(f"Error uploading {'video' if is_video else 'photo'}:")
+        print(json.dumps(response.json(), indent=2))
+        return None
+    
+    result = response.json()
+    print(f"Successfully uploaded {'video' if is_video else 'photo'} to Facebook!")
+    print(f"{'Video' if is_video else 'Photo'} ID:", result.get("id"))
+    return result
 
-# Facebook Page ID (replace with your actual page ID)
-page_id = '405552919315997'
+def main():
+    user_access_token = "EAAH07frqp0wBO5VEZCmGwsdNdZBxgKP83pZCgVW28TKZC9rkyClZBIIxT5Ep8KQ7Hi7fchScJ9KOnM0U4mebpbkw1P2No1ecx0sP9HgP2oGi5Xa7Bb5ZAZBsmYIIEtZBzpJjCymcMAx4ZBNIZBjRHrPrMZB3ZAF2AzZBHpYp5ZBMJdBMHiBZBxWXUvyR0DzOIgGinhqTcaO"
+    page_id = "405552919315997"
+    
+    # Debug the user access token
+    debug_access_token(user_access_token)
+    
+    # Get the page access token
+    page_access_token = get_page_access_token(user_access_token, page_id)
+    if not page_access_token:
+        print("Failed to get page access token. Exiting.")
+        return
+    
+    print("\nUsing Page Access Token:")
+    debug_access_token(page_access_token)
+    
+    # Photo upload
+    photo_path = "/home/vithamas/Desktop/social_media_automation_/social_media_automation/3.jpeg"
+    photo_description = "Check out this awesome photo!"
+    photo_result = upload_media_to_facebook(page_access_token, page_id, photo_path, photo_description)
+    
+    if photo_result:
+        print("Photo upload successful.")
+    else:
+        print("Photo upload failed.")
+    
+    # Video upload
+    video_path = "/home/vithamas/Desktop/social_media_automation_/social_media_automation/instagram_reel.mp4"
+    video_description = "Watch this amazing video!"
+    video_result = upload_media_to_facebook(page_access_token, page_id, video_path, video_description, is_video=True)
+    
+    if video_result:
+        print("Video upload successful.")
+    else:
+        print("Video upload failed.")
 
-# Message for the post
-message = 'God of Cricket #great'
-
-# URL of the image
-image_url = 'https://images.tribuneindia.com/cms/gall_content/2019/9/2019_9$largeimg26_Thursday_2019_120331808.jpg'
-
-# Retrieve the Page Access Token
-page_access_token = get_page_access_token(page_id, user_access_token)
-
-# If the Page Access Token was successfully retrieved, publish the post with the image URL
-if page_access_token:
-    post_fb_with_image_url(page_id, page_access_token, message, image_url)
-else:
-    print("Failed to obtain Page Access Token.")
+if __name__ == "__main__":
+    main()
