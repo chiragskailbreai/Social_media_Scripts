@@ -40,7 +40,8 @@ def post_fb_with_image_url(page_id, page_access_token, message, image_url):
         return None
 
 # User access token (replace with your actual user access token)
-user_access_token = 'EAARFy0xMzyIBOwPIjWaAVqUAxk0FLJZBg6F1zPrtP74llOPr94K1q10xPlTKkyZCfZCuGsLjGZCPqDWU9G5S0kqvy29J4W9itvHL35IkgeooaHvkC7hZB8w6YLIv9ylHluDQcfczlmdwGcO1FU19cRxpNnUezP8H3P6k7NqaaWZAFwSfH3OT15dJ26rD7hOgYP'
+user_access_token = 'EAARFy0xMzyIBO3LAZBbtOZBYnl7kDs9IW9c8qNSCXGYSSUZBchJqnyS9ppCc529W1nRIuvEz7kqZAkhWJ0aaMnzWPD973y2JBqfcC2m0AyGOdrbZC18x4fZCQwSlHcTPXXLM2tUP5GKZC2XV7tWJDOILpaD4SZCZAHteQEQVVneN8gXLGdIPj9FPb9HEvTc3mnZBII
+Debug'
 
 # Facebook Page ID (replace with your actual page ID)
 page_id = '405552919315997'
