@@ -1,4 +1,3 @@
-
 """
 Create a Bot on Telegram:
 
@@ -79,8 +78,8 @@ from datetime import datetime, timedelta
 
 
 
-SUPABASE_URL="https://ftpmofyfqyypduhqguwo.supabase.co"
-SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0cG1vZnlmcXl5cGR1aHFndXdvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTcwOTk3OTEwNCwiZXhwIjoyMDI1NTU1MTA0fQ.k5D9-h7aeuZ5-Suz-wB2SAjrKAI6p7hcITJLCqvZmFk"
+SUPABASE_URL="http://192.168.1.34:8000/"
+SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3Mjc3MjEwMDAsImV4cCI6MjA0MzA4MTAwMH0.igskkyDY2XoeA7LvE_vGLjS5-etBAHsvYms75UJVEyg"
 
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -119,43 +118,63 @@ async def send_text():
     res = supabase.table('channel_automation_template').select('id', 'meta_data').eq('social_media_type', 'whatsapp').execute()
     obj = res.data[0].get('meta_data')
     template_id = res.data[0].get('id')
+    # print(res)
 
     # Calculate date 30 days ago
     date_30_days_ago = (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d")
 
     channel_res = supabase.table('channel_automation').select('id', 'chat_id', 'channel_base').execute()
     channel_res = channel_res.data
+ 
     for channel in channel_res:
+       
+        role = channel['channel_base']
         
-        role =channel['channel_base']
-        
-        print(role)
         chat_id = channel['chat_id']
-     
+        print(role, 'role')
+    
         id = channel['id']
+
+        role = re.sub(r'\s+', '-', role).lower()
+        print(role, '.................')
         # Make API request for each role
-        api_url = f"https://dev.kalibre.ai/api/v1/jobs/socialmedia/?job_created_on__gte={date_30_days_ago}&role={role}&location=Pune"
+        api_url = f"https://app.kalibre.ai/api/v1/jobs/socialmedia/?c=3&d=30&cc=in&role={role}"   #&role=security-engineer
         
+
         print(api_url)
         dev_api = requests.get(api_url)
+        print(dev_api.json())
+        # break
         jobs = dev_api.json()
+        print()
 
         
-        print(jobs)
+
+        
+        # print(len(jobs))
+        # break
         
         
         if not jobs:
             continue    
 
         desc = ""
+        # jobs = jobs[0]
         role_update = obj["title"]
-        for job in jobs.get('jobs', []):
-            company_name = job.get('company')
-            job_role = job.get('role')
-            city_name = job.get('location')
-            apply_link = "https://kalibre.ai/" + job.get('short_url')
+        for job in jobs:
+            # print(job)
+            company_name = job.get('job_details').get('company',{}).get('name')
+            job_role = job.get('job_details').get('jobrole',{}).get('name')
+            city_name = job.get('job_details').get('locations',{}).get('locations')[0]
+            apply_link = "https://app.kalibre.ai/api/v1/s/"+job.get('group_shorturl')+'/' + job.get('job_short_url')
 
             dec = obj['description']
+            print(company_name)
+
+            print(job_role)
+            print(company_name)
+            print(city_name)
+            print(apply_link)
             # Replacing placeholders with actual values
             dec = dec.replace("{{company_name}}", company_name)
             dec = dec.replace("{{job_role}}", job_role)
@@ -170,12 +189,12 @@ async def send_text():
         obj['cta'] = obj['cta'].replace("{{kalibre_linkedin_link_text}}", "Kalibre LinkedIn")
         obj['cta'] = obj['cta'].replace("{{kalibre_linkedin_link_target}}", "https://www.linkedin.com/company/kalibreai")
         role_update =role_update.replace("{{role}}", role)
-        role_update =role_update.replace("{{location}}", "Pune")
+        role_update =role_update.replace("{{location}}", "India")
 
 
-        print(role, 'yyyyyy')
+        # print(role, 'yyyyyy')
 
-        print(obj['title'])
+        # print(obj['title'])
 
         message_text = f"""
 {role_update}
@@ -185,10 +204,12 @@ async def send_text():
 """
 
 
+        # print('---',desc)
+        
 
 
         message_text = re.sub(r'([.=\-])', r'\\\1', message_text)
-
+        
         try:
             # Send the message with MarkdownV2 formatting
             msg_response =  bot.send_message(
