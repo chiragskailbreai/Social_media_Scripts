@@ -12,6 +12,7 @@ from selenium.webdriver.chrome.options import Options
 import time
 import pyperclip
 import pyautogui
+import webbrowser
 
 
 
@@ -54,10 +55,12 @@ async def send_text():
         # break
         id = channel['id']
         # Make API request for each role
-        api_url = f"https://app.kalibre.ai/api/v1/jobs/socialmedia/?c=3&d=30&cc=in&role={role}"   #&role=security-engineer
+        api_url = f"https://sapi.kalibre.ai/api/v1/jobs/socialmedia/?c=5&h=8&cc=in&role={role}"
+        print(api_url)
         #https://sapi.kalibre.ai/api/v1/jobs/socialmedia/?c=3&d=2&cc=in&role=marketing&location=bengaluru
         dev_api = requests.get(api_url)
         # print(dev_api.json())
+# &cc=in&role={role}
         jobs = dev_api.json()
         # break
 
@@ -74,7 +77,7 @@ async def send_text():
         # jobs = jobs[0]
         role_update = obj["title"]
         for job in jobs:
-            print(job)
+            # print(job)
             
             company_name = job.get('job_details').get('company',{}).get('company_name')
             job_role = job.get('job_details').get('jobrole',{}).get('name')
@@ -118,22 +121,26 @@ async def send_text():
 
         # whatsapp_group_id = "BLsotzyUCdD6wWJWa650XC"
          
-        pywhatkit.sendwhatmsg_to_group_instantly(
-            group_id=chat_id,
-            # disable_web_page_preview=True,
-            message=" "
-        )
-        pyperclip.copy(message_text)
-        pyautogui.hotkey('ctrl', 'v')
-        pyautogui.press('enter')
-        time.sleep(3)
-        pyautogui.hotkey('ctrl', 'w')  # Use 'command' on Mac
-        # webbrowser.get().close()
+    #     pywhatkit.sendwhatmsg_to_group_instantly(
+    #         group_id=chat_id,
+    #         # disable_web_page_preview=True,
+    #         message=" "
+    #     )
+    #     pyperclip.copy(message_text)
+    #     pyautogui.hotkey('ctrl', 'v')
+    #     time.sleep(3)
+    #     pyautogui.press('enter')
+    #     time.sleep(3)
+    #     pyautogui.hotkey('ctrl', 'w')  # Use 'command' on Mac
+    #     # webbrowser.get().close()
         
 
-        print(f"Message sent to WhatsApp group: {chat_id}")
+    #     print(f"Message sent to WhatsApp group: {chat_id}")
 
-
+        
     # pyautogui.hotkey('alt', 'f4') 
 if __name__ == "__main__":
-    asyncio.run(send_text())
+    asyncio.run(send_text()) 
+    
+
+
