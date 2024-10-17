@@ -1,0 +1,185 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
+from selenium.webdriver.common.action_chains import ActionChains
+import time
+import urllib.parse
+
+def setup_driver():
+    chrome_options = Options()
+    user_data_dir = "/home/vithamas/.config/google-chrome/Profile 7"  # Update this path
+    chrome_options.add_argument(f"user-data-dir={user_data_dir}")
+    chrome_options.add_argument("--start-maximized")
+    driver = webdriver.Chrome(options=chrome_options)
+    return driver
+
+def get_post_info(post):
+    try:
+        # Try multiple possible selectors for likes count
+        like_selectors = [
+            ".social-details-social-counts__reactions-count",
+            ".social-details-social-count",
+            "[data-testid='social-proof-social-counts']"
+        ]
+        for selector in like_selectors:
+            try:
+                likes_element = post.find_element(By.CSS_SELECTOR, selector)
+                likes_text = likes_element.text.strip()
+                likes_count = int(''.join(filter(str.isdigit, likes_text)))
+                break
+            except NoSuchElementException:
+                continue
+        else:
+            likes_count = 0
+
+        # Try multiple possible selectors for member name
+        name_selectors = [
+            ".feed-shared-actor__name",
+            ".update-components-actor__name",
+            "[data-testid='actor-name']"
+        ]
+        for selector in name_selectors:
+            try:
+                name_element = post.find_element(By.CSS_SELECTOR, selector)
+                member_name = name_element.text.strip()
+                break
+            except NoSuchElementException:
+                continue
+        else:
+            member_name = None
+
+        return likes_count, member_name
+    except Exception as e:
+        print(f"Error getting post info: {str(e)}")
+        return 0, None
+
+def scroll_to_new_content(driver):
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+    time.sleep(5)  # Wait for new content to load
+    new_height = driver.execute_script("return document.body.scrollHeight")
+    return new_height > last_height
+
+def find_and_comment_on_post(driver, commented_members):
+    posts = driver.find_elements(By.XPATH, "//div[contains(@class, 'feed-shared-update-v2') or contains(@class, 'occludable-update')]")
+    
+    for post in posts:
+        likes_count, member_name = get_post_info(post)
+        
+        if likes_count >= 20 and member_name and member_name not in commented_members:
+            print(f"Found post by {member_name} with {likes_count} likes. Attempting to comment.")
+            if comment_on_post(driver, post):
+                commented_members.add(member_name)
+                return True
+    
+    return False
+
+def comment_on_post(driver, post):
+    try:
+        # Scroll the post into view
+        driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", post)
+        time.sleep(2)  # Wait for scroll to complete
+
+        # Try multiple possible selectors for the comment button
+        comment_button_selectors = [
+            ".//button[contains(@class, 'artdeco-button') and .//span[text()='Comment']]",
+            ".//button[contains(@aria-label, 'Comment on this post')]",
+            ".//button[contains(@data-control-name, 'comment')]"
+        ]
+
+        comment_button = None
+        for selector in comment_button_selectors:
+            try:
+                comment_button = post.find_element(By.XPATH, selector)
+                break
+            except NoSuchElementException:
+                continue
+
+        if comment_button is None:
+            print("Could not find comment button")
+            return False
+
+        # Use JavaScript to click the button
+        driver.execute_script("arguments[0].click();", comment_button)
+        print("Clicked comment button")
+
+        # Wait for the comment box to be visible and interactive within this specific post
+        comment_box = WebDriverWait(post, 10).until(
+            EC.presence_of_element_located((By.XPATH, ".//div[contains(@class, 'ql-editor')]"))
+        )
+
+        # Enter the comment
+        comment_box.send_keys("Thanks for sharing!")
+        time.sleep(2)
+
+        # Try multiple possible selectors for the submit button within this specific post
+        submit_button_selectors = [
+            ".//button[contains(@class, 'comments-comment-box__submit-button')]",
+            ".//button[contains(@aria-label, 'Post comment')]",
+            ".//button[contains(@data-control-name, 'post_comment')]"
+        ]
+
+        submit_button = None
+        for selector in submit_button_selectors:
+            try:
+                submit_button = WebDriverWait(post, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, selector))
+                )
+                break
+            except (NoSuchElementException, TimeoutException):
+                continue
+
+        if submit_button is None:
+            print("Could not find submit button")
+            return False
+
+        # Use JavaScript to click the submit button
+        driver.execute_script("arguments[0].click();", submit_button)
+        print("Clicked submit button")
+
+        print("Successfully commented on the post")
+        return True
+    except Exception as e:
+        print(f"Error commenting on post: {str(e)}")
+    
+    return False
+
+def linkedin_auto_commenter():
+    driver = setup_driver()
+    commented_members = set()
+
+    try:
+        search_query = urllib.parse.quote("sap developer")
+        search_url = f"https://www.linkedin.com/search/results/content/?keywords={search_query}&origin=GLOBAL_SEARCH_HEADER"
+        driver.get(search_url)
+
+        # Wait for the search results to load
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//input[@placeholder='Search']")))
+
+        comments_made = 0
+        scroll_attempts = 0
+        max_scroll_attempts = 50
+
+        while comments_made < 10 and scroll_attempts < max_scroll_attempts:
+            if find_and_comment_on_post(driver, commented_members):
+                comments_made += 1
+                print(f"Commented on {comments_made} posts so far")
+            
+            print("Scrolling to find new posts...")
+            if not scroll_to_new_content(driver):
+                print("Reached end of page or no new content loaded")
+                break
+            scroll_attempts += 1
+
+        print(f"Commented on {comments_made} posts in total")
+        print(f"Scrolled {scroll_attempts} times")
+
+    finally:
+        # Close the browser
+        driver.quit()
+
+if __name__ == "__main__":
+    linkedin_auto_commenter()
