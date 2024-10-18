@@ -131,14 +131,14 @@ async def send_text():
         role = channel['channel_base']
         
         chat_id = channel['chat_id']
-        print(role, 'role')
+        # print(role, 'role')
     
         id = channel['id']
 
         role = re.sub(r'\s+', '-', role).lower()
-        print(role, '.................')
+        # print(role, '.................')
         # Make API request for each role
-        api_url = f"https://app.kalibre.ai/api/v1/jobs/socialmedia/?c=3&d=30&cc=in&role={role}"   #&role=security-engineer
+        api_url = f"https://sapi.kalibre.ai/api/v1/jobs/socialmedia/?c=10&h=9&cc=in&role={role}"   #&role=security-engineer
         
 
         print(api_url)
@@ -146,7 +146,7 @@ async def send_text():
         print(dev_api.json())
         # break
         jobs = dev_api.json()
-        print()
+        # print()
 
         
 
@@ -166,14 +166,14 @@ async def send_text():
             company_name = job.get('job_details').get('company',{}).get('name')
             job_role = job.get('job_details').get('jobrole',{}).get('name')
             city_name = job.get('job_details').get('locations',{}).get('locations')[0]
-            apply_link = "https://app.kalibre.ai/api/v1/s/"+job.get('group_shorturl')+'/' + job.get('job_short_url')
+            apply_link = "https://kalibre.ai/s/"+job.get('group_shorturl')+'/' + job.get('job_short_url')
 
             dec = obj['description']
-            print(company_name)
+            # print(company_name)
 
-            print(job_role)
-            print(company_name)
-            print(city_name)
+            # print(job_role)
+            # print(company_name)
+            # print(city_name)
             print(apply_link)
             # Replacing placeholders with actual values
             dec = dec.replace("{{company_name}}", company_name)
