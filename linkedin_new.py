@@ -16,6 +16,7 @@ def setup_driver():
     chrome_options = Options()
     chrome_options.add_argument("user-data-dir=selenium")  # This will store the profile
     service = Service(ChromeDriverManager().install())
+    
     return webdriver.Chrome(service=service, options=chrome_options)
 
 def login_to_linkedin(driver, phone_number, password):
