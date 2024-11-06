@@ -63,6 +63,7 @@ telegram parser docs
 
 """
 import asyncio
+import random
 from telegram import Bot
 # from telegram.constants import ParseMode
 import re
@@ -110,6 +111,7 @@ chat_ids = {
 
 
 async def send_text():
+    bt = bot_token  # Replace with your actual bot token
     bot = Bot(token=bot_token)
     
     two_days_ago = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
@@ -118,119 +120,126 @@ async def send_text():
     res = supabase.table('channel_automation_template').select('id', 'meta_data').eq('social_media_type', 'whatsapp').execute()
     obj = res.data[0].get('meta_data')
     template_id = res.data[0].get('id')
-    # print(res)
 
     # Calculate date 30 days ago
     date_30_days_ago = (datetime.now() - timedelta(days=20)).strftime("%Y-%m-%d")
 
-    channel_res = supabase.table('channel_automation').select('id', 'chat_id', 'channel_base').execute()
+    channel_res = supabase.table('channel_automation').select('id', 'chat_id', 'channel_base').not_.is_("channel_base","null").eq('social_media_type', 'telegram').execute()
     channel_res = channel_res.data
  
     for channel in channel_res:
-       
         role = channel['channel_base']
-        
+        # if role is None:
+        #     break
+        role_res = supabase.table('roles').select('id').eq("attributes->>name", role).limit(1).execute()
+        # print(role)
+        role_id = role_res.data[0].get('id')
+        # print(role_id)        
         chat_id = channel['chat_id']
-        # print(role, 'role')
-    
         id = channel['id']
-
-        role = re.sub(r'\s+', '-', role).lower()
         # print(role, '.................')
+        
         # Make API request for each role
-        api_url = f"https://sapi.kalibre.ai/api/v1/jobs/socialmedia/?c=10&h=9&cc=in&role={role}"   #&role=security-engineer
-        
-
+        print()
+        api_url = f"https://sapi.kalibre.ai/api/v1/jobs/groups/search/?use_case=social&job_cc=in&category_id={role_id}"
         print(api_url)
-        dev_api = requests.get(api_url)
-        print(dev_api.json())
-        # break
-        jobs = dev_api.json()
         # print()
+        api1 = requests.get(api_url)
+        grps_data = api1.json()
 
+        desc = ""  # Initialize description for each role
+        job_ids_=[]
+        for data in grps_data:
+            group_short_url = data.get('group_short_id')
+            grp_id = data.get('group_id')
+            job_ids = data.get('job_ids')
+
+            if job_ids:
+                job_ids_.extend(job_ids)
+            
+
+        if job_ids_: 
+            # print(job_ids_)   
+            job_response = f"https://sapi.kalibre.ai/api/v1/jobs/search/?&id__in={'__'.join(random.sample(job_ids_, 2))}"
+            print(job_response)
+                # print()
+                # break
+                # print(job_response.json())
+            job_response = requests.get(job_response)
+            data = job_response.json()
+                # Check if 'results' key exists before iterating
+            if 'results' in data:
+                for result in data['results']:
+                    company_name = result['company']['company_name']
+                    city_name = result['job_locations'][0]['label'] if result['job_locations'] else None
+                    short_url = result['short_url']
+
+                    apply_link = f"https://kalibre.ai/q/{group_short_url}/{short_url}"
+                    # print(apply_link)
+                    dec = obj['description']
+
+                    # Replace placeholders with actual values
+                    dec = dec.replace("{{company_name}}", company_name)
+                    dec = dec.replace("{{job_role}}", role)
+                    dec = dec.replace("{{job_link_text}}", apply_link)
+                    dec = dec.replace("{{job_link_target}}", apply_link)
+                    dec = dec.replace("{{city_name}}", city_name)
+
+                    desc += dec + '\n\n'
+            
+                # print(f"No results found for group {grp_id}. Skipping this entry.")
         
+        # CTA and role update replacements
+            obj['cta'] = obj['cta'].replace("{{kalibre_link_text}}", "Kalibre")
+            obj['cta'] = obj['cta'].replace("{{kalibre_link_target}}", "https://kalibre.ai")
+            obj['cta'] = obj['cta'].replace("{{kalibre_linkedin_link_text}}", "Kalibre LinkedIn")
+            obj['cta'] = obj['cta'].replace("{{kalibre_linkedin_link_target}}", "https://www.linkedin.com/company/kalibreai")
+            
+            role_update = obj["title"].replace("{{role}}", role).replace("{{location}}", "India")
 
-        
-        # print(len(jobs))
-        # break
-        
-        
-        if not jobs:
-            continue    
-
-        desc = ""
-        # jobs = jobs[0]
-        role_update = obj["title"]
-        for job in jobs:
-            # print(job)
-            company_name = job.get('job_details').get('company',{}).get('name')
-            job_role = job.get('job_details').get('jobrole',{}).get('name')
-            city_name = job.get('job_details').get('locations',{}).get('locations')[0]
-            apply_link = "https://kalibre.ai/s/"+job.get('group_shorturl')+'/' + job.get('job_short_url')
-
-            dec = obj['description']
-            # print(company_name)
-
-            # print(job_role)
-            # print(company_name)
-            # print(city_name)
-            print(apply_link)
-            # Replacing placeholders with actual values
-            dec = dec.replace("{{company_name}}", company_name)
-            dec = dec.replace("{{job_role}}", job_role)
-            dec = dec.replace("{{job_link_text}}", apply_link)
-            dec = dec.replace("{{job_link_target}}", apply_link)
-            dec = dec.replace("{{city_name}}", city_name)
-
-            desc += dec + '\n\n'
-
-        obj['cta'] = obj['cta'].replace("{{kalibre_link_text}}", "Kalibre")
-        obj['cta'] = obj['cta'].replace("{{kalibre_link_target}}", "https://kalibre.ai")
-        obj['cta'] = obj['cta'].replace("{{kalibre_linkedin_link_text}}", "Kalibre LinkedIn")
-        obj['cta'] = obj['cta'].replace("{{kalibre_linkedin_link_target}}", "https://www.linkedin.com/company/kalibreai")
-        role_update =role_update.replace("{{role}}", role)
-        role_update =role_update.replace("{{location}}", "India")
-
-
-        # print(role, 'yyyyyy')
-
-        # print(obj['title'])
-
-        message_text = f"""
+            # Construct message text
+            message_text = f"""
 {role_update}
 
 {desc}
 {obj['cta']}
-"""
-
-
-        # print('---',desc)
-        
-
-
-        message_text = re.sub(r'([.=\-])', r'\\\1', message_text)
-        
-        try:
-            # Send the message with MarkdownV2 formatting
-            msg_response =  bot.send_message(
-                chat_id=chat_id,
-                disable_web_page_preview=True,
-                text=message_text,
-                parse_mode='MarkdownV2'
-            )
-
-            if msg_response:
-                print(f"Message sent successfully for {role}!")
-                print(f"Message ID: {msg_response.message_id}")
-                
-                supabase.table('channel_automation_association').insert({"template":template_id, "channel":id}).execute()
-            else:
-                print(f"Failed to send the message for {role}.")
-        except Exception as e:
-            print(f"An error occurred while sending message for {role}: {str(e)}")
+    """
+            
+            # Escape special characters for MarkdownV2 format
+            message_text = re.sub(r'([.=\-])', r'\\\1', message_text)
+            print(message_text)
+            # break
+            print(chat_id)
+            # Uncomment the following lines to send the message through the bot
+            try:
+                msg_response = bot.send_message(
+                    chat_id=chat_id,
+                    disable_web_page_preview=True,
+                    text=message_text,
+                    parse_mode='MarkdownV2'
+                )
+                if msg_response:
+                    print(f"Message sent successfully for {role}!")
+                    supabase.table('channel_automation_association').insert({"template": template_id, "channel": id}).execute()
+                else:
+                    print(f"Failed to send the message for {role}.")
+            except Exception as e:
+                print(f"An error occurred while sending message for {role}: {str(e)}")
+            try:
+                msg_response = bot.send_message(
+                    chat_id="-4536063353",
+                    disable_web_page_preview=True,
+                    text=message_text,
+                    parse_mode='MarkdownV2'
+                )
+                if msg_response:
+                    print(f"Message sent successfully for {role}! for test group_______________________________________________")
+                    supabase.table('channel_automation_association').insert({"template": template_id, "channel": id}).execute()
+                else:
+                    print(f"Failed to send the message for {role}.")
+            except Exception as e:
+                print(f"An error occurred while sending message for {role}: {str(e)}")
+            
 
 if __name__ == "__main__":
     asyncio.run(send_text())
-
-
-    
